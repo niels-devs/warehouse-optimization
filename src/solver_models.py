@@ -2,9 +2,9 @@ import pulp as pl
 from typing import List, Dict, Set
 
 def model_batching(data) -> Dict:
-    vol = data["vol"]
+    vol = data["order_volumes"]
 
-    nb_orders = data["nb_orders"]
+    nb_orders = data["num_orders"]
 
     max_pickers = data["max_pickers"]
     max_nb_orders = data["max_nb_orders"]
@@ -69,11 +69,11 @@ def model_batching(data) -> Dict:
 def model_picking(data):
     adj_matrix = data["adj_matrix"]
 
-    nb_locations = data["nb_locations"]
+    nb_locations = data["num_locations"]
 
     max_pickers = data["max_pickers"]
 
-    locations_pickers = data["locations_pickers"]
+    pickers_locations = data["pickers_locations"]
 
     # minimization problem creation
     model = pl.LpProblem("modele_picking", pl.LpMinimize)
@@ -81,52 +81,52 @@ def model_picking(data):
     ## Variables
 
     # Decision variable indicating whether picker p travels from location i to location j
-    x = pl.LpVariable.dicts("x", [(i,j,p) for p in range(max_pickers) for i in locations_pickers[p] for j in locations_pickers[p] if i != j], cat="Binary")
+    x = pl.LpVariable.dicts("x", [(i,j,p) for p in range(max_pickers) for i in pickers_locations[p] for j in pickers_locations[p] if i != j], cat="Binary")
 
     # Continuous variable used to eliminate sub-tours
-    u = pl.LpVariable.dicts("u", [(i,p) for p in range(max_pickers) for i in locations_pickers[p]], lowBound=0, upBound=nb_locations - 1, cat="Integer")
+    u = pl.LpVariable.dicts("u", [(i,p) for p in range(max_pickers) for i in pickers_locations[p]], lowBound=0, upBound=nb_locations - 1, cat="Integer")
 
     ## Objective function
-    model += pl.lpSum(adj_matrix[i][j] * x[i,j,p] for p in range(max_pickers) for i in locations_pickers[p] for j in locations_pickers[p] if i != j)
+    model += pl.lpSum(adj_matrix[i][j] * x[i,j,p] for p in range(max_pickers) for i in pickers_locations[p] for j in pickers_locations[p] if i != j)
 
     ## Constraints
 
     # picker p must enter location j from exactly one other location i within their assigned batch
     for p in range(max_pickers):
-        if locations_pickers[p]:
-            for j in locations_pickers[p]:
+        if pickers_locations[p]:
+            for j in pickers_locations[p]:
                 if j != 0:
-                    model += pl.lpSum(x[i,j,p] for i in locations_pickers[p] if i != j) == 1 
+                    model += pl.lpSum(x[i,j,p] for i in pickers_locations[p] if i != j) == 1 
 
     # picker p must leave location i to exactly one other location j within their assigned batch
     for p in range(max_pickers):
-        if locations_pickers[p]:
-            for i in locations_pickers[p]:
-                if i != (locations_pickers[p][-1]):
-                    model += pl.lpSum(x[i,j,p] for j in locations_pickers[p] if i != j) == 1
+        if pickers_locations[p]:
+            for i in pickers_locations[p]:
+                if i != (pickers_locations[p][-1]):
+                    model += pl.lpSum(x[i,j,p] for j in pickers_locations[p] if i != j) == 1
 
     # No arcs departing from the arrival point
     for p in range(max_pickers):
-        if locations_pickers[p]:
-            for j in locations_pickers[p]:
+        if pickers_locations[p]:
+            for j in pickers_locations[p]:
                 if i != j:
-                    model += x[locations_pickers[p][-1],j,p] == 0
+                    model += x[pickers_locations[p][-1],j,p] == 0
 
     # constraint eliminating sub-tours
     for p in range(max_pickers):
-        if locations_pickers[p]:
-            for i in locations_pickers[p]:
-                for j in locations_pickers[p]:
+        if pickers_locations[p]:
+            for i in pickers_locations[p]:
+                for j in pickers_locations[p]:
                     if i != j:
                         if j != 0:
-                            if i != locations_pickers[p][-1]:
-                                model += u[i,p] - u[j,p] + x[i,j,p] * len(locations_pickers[p]) <= len(locations_pickers[p]) - 1
+                            if i != pickers_locations[p][-1]:
+                                model += u[i,p] - u[j,p] + x[i,j,p] * len(pickers_locations[p]) <= len(pickers_locations[p]) - 1
 
     # departure from location 0
     for p in range(max_pickers):
-        if locations_pickers[p]:
+        if pickers_locations[p]:
             model += u[0,p] == 0
-            arrival = locations_pickers[p][-1]
+            arrival = pickers_locations[p][-1]
             model += u[arrival, p] == nb_locations - 1
 
     model.solve()
@@ -134,21 +134,21 @@ def model_picking(data):
     sol={}
     solution = {}
     for p in range(max_pickers):
-        for i in locations_pickers[p]:
+        for i in pickers_locations[p]:
             sol[i,p] = u[i,p].varValue
-            for j in locations_pickers[p]:
+            for j in pickers_locations[p]:
                 if i != j:
                     solution[i,j,p] = x[i,j,p].varValue
     travel = {
     p: [(i, j) 
-        for i in locations_pickers[p]
-        for j in locations_pickers[p]
+        for i in pickers_locations[p]
+        for j in pickers_locations[p]
         if i != j and solution[i, j, p] > 0.5]
     for p in range(max_pickers)
     }
-    u_values = {
+    """u_values = {
     p: [sol[i,p] for i in locations_pickers[p]]
     for p in range(max_pickers) if locations_pickers[p]
-}
+    }"""
 
-    return travel, u_values
+    return travel

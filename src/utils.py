@@ -31,7 +31,7 @@ def max_pickers_bounds(orders, nb_orders, max_nb_orders, max_vol, vol):
 
     return lower_bound, upper_bound
 
-def if_loc_in_order(nb_locations: int, orders: List[Dict[str, object]]):
+def is_loc_in_order(nb_locations: int, orders: List[Dict[str, object]]):
     """
     Build a dictionary data[location, order] = 1 if location is visited in order, 0 otherwise
     """

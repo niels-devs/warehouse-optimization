@@ -37,7 +37,7 @@ def check_batching_solution(batches: Dict[int, List[int]], vol: List[int], max_n
         else: 
             return False, errors
 
-def check_picking_solution(travel: Dict[int, List[Tuple[int, int]]], nb_locations: int) -> Tuple[bool, List[str]]:
+def check_picking_solution(travel: Dict[int, List[Tuple[int, int]]], num_locations: int) -> Tuple[bool, List[str]]:
     """
     Check that a picking solution is valid.
 
@@ -49,7 +49,7 @@ def check_picking_solution(travel: Dict[int, List[Tuple[int, int]]], nb_location
         tuple[bool, List[str]]: (True, ["Valid"]) or (False, [errors])
     """
     errors = []
-    last_location = nb_locations - 1
+    last_location = num_locations - 1
 
     for p, arcs in travel.items():
         if not arcs:
