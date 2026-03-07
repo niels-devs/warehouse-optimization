@@ -43,26 +43,46 @@ def is_loc_in_order(nb_locations: int, orders: List[Dict[str, object]]):
     return if_loc_in_ord
 
 def common_elements(if_loc_in_ord, nb_orders, nb_locations):
-    resultat = defaultdict(int)
-    for order_number in range(nb_orders):
-        for order_number2 in range(order_number + 1, nb_orders):
-            for loc in range(nb_locations):
-                if if_loc_in_ord[loc, order_number] == 1 and if_loc_in_ord[loc, order_number2] == 1:
-                    resultat[order_number, order_number2] += 1
-    return resultat
+    result = defaultdict(int)
 
-def get_picker_locations_from_ifloc(batches: Dict[int, List[int]], if_loc_in_ord: Dict[tuple, int], nb_locations: int):
+    for o1 in range(nb_orders):
+        for o2 in range(o1 + 1, nb_orders):
+            for loc in range(nb_locations):
+                if if_loc_in_ord[loc, o1] == 1 and if_loc_in_ord[loc, o2] == 1:
+                    result[o1, o2] += 1
+                    result[o2, o1] += 1   # add symmetric value
+
+    return result
+
+def get_picker_locations_from_ifloc(
+    batches: Dict[int, List[int]],
+    if_loc_in_ord: Dict[tuple, int],
+    nb_locations: int
+) -> Dict[int, List[int]]:
+    """
+    Convert batches of orders into actual locations for each picker.
+
+    Args:
+        batches: dictionary {picker_id: list of orders}
+        if_loc_in_ord: dictionary {(location, order): 1 if order requires location else 0}
+        nb_locations: total number of locations
+
+    Returns:
+        picker_locations: dictionary {picker_id: sorted list of locations}
+                          Only pickers with at least one location are returned.
+    """
     picker_locations = {}
 
     for picker, orders in batches.items():
         locations = set()
 
         for loc in range(nb_locations):
-            for order_number in orders:
-                if if_loc_in_ord.get((loc, order_number), 0) == 1:
-                    locations.add(loc)
-                    break
+            # Check if any of this picker's orders require this location
+            if any(if_loc_in_ord.get((loc, order_number), 0) == 1 for order_number in orders):
+                locations.add(loc)
 
-        picker_locations[picker] = sorted(locations)
+        # Only add pickers that actually have locations
+        if locations:
+            picker_locations[picker] = sorted(locations)
 
     return picker_locations

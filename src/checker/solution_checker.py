@@ -1,6 +1,6 @@
-from typing import List, Dict, Tuple
+from typing import List, Dict, Tuple, Any
 
-def check_batching_solution(batches: Dict[int, List[int]], vol: List[int], max_nb_orders: int, max_vol: int) -> Tuple[bool, List[str]]:
+def check_batching_solution(batches: Dict[int, List[int]], data: Dict[str, Any]) -> Tuple[bool, List[str]]:
     """
     Check that a batching solution is valid.
 
@@ -13,6 +13,10 @@ def check_batching_solution(batches: Dict[int, List[int]], vol: List[int], max_n
     Returns:
         tuple[bool, List[str]]: (True, ["Valid"]) or (False, [errors])
     """
+    order_volumes = data["order_volumes"]
+    max_nb_orders = data["max_nb_orders"] 
+    max_vol = data["max_vol"]
+
     errors = []
     assigned_orders = set()
 
@@ -22,7 +26,7 @@ def check_batching_solution(batches: Dict[int, List[int]], vol: List[int], max_n
             errors.append(f"Picker {p} assigned {len(orders)} orders > max {max_nb_orders}")
 
         # Check max volume per picker
-        total_vol = sum(vol[o] for o in orders)
+        total_vol = sum(order_volumes[o] for o in orders)
         if total_vol > max_vol:
             errors.append(f"Picker {p} carries volume {total_vol} > max {max_vol}")
 
