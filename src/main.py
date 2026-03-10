@@ -27,10 +27,6 @@ from solver_models import (
 )
 
 from utils import (
-    get_locations_and_orders_counts,
-    max_pickers_bounds,
-    is_loc_in_order,
-    common_elements,
     get_picker_locations_from_ifloc
 )
 
@@ -41,20 +37,17 @@ from heuristics import greedy_order_batching
 # -----------------------------------------------------------------------------
 
 logging.basicConfig(
-    level=logging.INFO,
+    level=logging.DEBUG,
     format="%(asctime)s | %(levelname)s | %(name)s | %(message)s"
 )
 
 logger = logging.getLogger(__name__)
 
-# -----------------------------------------------------------------------------
-# Data Loading
-# -----------------------------------------------------------------------------
-
 def test_batching(data):
     batches = model_batching(data)
     check_batching = check_batching_solution(batches, data)
     logger.debug("Check batching solution: %s", check_batching)
+    print(check_batching)
     if not check_batching[0]:
         logger.critical("Batching solution is INVALID. Erros: %s", check_batching[1])
         raise ValueError(f"Batching solution is INVALID: {check_batching[1]}")
@@ -122,8 +115,8 @@ def main():
     logger.info("objective=%s", objective2)
 
     print("\n===== SUMMARY =====")
-    print(f"Model batching cost : {objective}")
-    print(f"Greedy batching cost: {objective2}")
+    print(f"Model batching + Model Picking, cost : {objective}")
+    print(f"Greedy batching + Model Picking, cost: {objective2}")
 
     if objective <= objective2:
         print("Best method: model batching")

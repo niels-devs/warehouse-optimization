@@ -1,7 +1,16 @@
-import numpy as np
-from pathlib import Path
-from typing import List, Dict, Any
+# ----------------------------------------------------------------------------- 
+# Imports
+# ----------------------------------------------------------------------------- 
 
+# Standard library
+import logging
+from typing import List, Dict, Any
+from pathlib import Path
+
+# Third-party libraries
+import numpy as np
+
+# Local imports
 from checker.instance_checker import (
     check_distance_matrix,
     check_orders,
@@ -13,10 +22,8 @@ from utils import (
     max_pickers_bounds,
     is_loc_in_order,
     common_elements,
-    get_picker_locations_from_ifloc
 )
 
-import logging
 logger = logging.getLogger(__name__)
 
 def load_matrix(path: str | Path) -> np.ndarray:
@@ -54,7 +61,7 @@ def load_matrix(path: str | Path) -> np.ndarray:
         if adj_mat.ndim != 2 or adj_mat.shape[0] != adj_mat.shape[1]:
             raise ValueError("Loaded matrix must be 2D and square")
         
-        adj_mat = adj_mat.tolist()  # convertit l'array en liste de listes Python
+        adj_mat = adj_mat.tolist()
         return adj_mat
     
     # Text format: handle header line
@@ -82,7 +89,7 @@ def load_matrix(path: str | Path) -> np.ndarray:
             row = [float(x) for x in lines[i + 1].strip().split()]
             adj_mat[i] = row
 
-        adj_mat = adj_mat.tolist()  # convertit l'array en liste de listes Python
+        adj_mat = adj_mat.tolist()
         return adj_mat
 
     else: 
@@ -90,94 +97,107 @@ def load_matrix(path: str | Path) -> np.ndarray:
             row = [float(x) for x in lines[i].strip().split()]
             adj_mat[i] = row
         
-        adj_mat = adj_mat.tolist()  # convertit l'array en liste de listes Python
+        adj_mat = adj_mat.tolist()
         return adj_mat
 
 def load_orders(path: str | Path):
     """
-    Load a square adjacency matrix from a file.
-    Supports text (.txt) with a header line, or NumPy binary (.npy).
+    Load orders from a text file.
 
-    Text format expected:
-        - First line: number of locations (optional, can be used for verification)
-        - Remaining lines: square matrix (space, tab, or comma separated)
+    Expected file format:
+        - First line: number of orders
+        - Then for each order (2 lines):
+            line 1: order_id volume number_of_locations
+            line 2: list of location IDs
 
     Args:
-        path (str | Path): Path to the matrix file.
+        path (str | Path): Path to the orders file.
 
     Returns:
-        np.ndarray: Loaded square matrix.
+        list[dict]: List of orders with the following structure:
+            {
+                "id": int,
+                "volume": int,
+                "nb_locations": int,
+                "locations_list": list[int],
+                "locations_set": set[int]
+            }
 
     Raises:
         FileNotFoundError: If the file does not exist.
-        ValueError: If the matrix is not square or size doesn't match header.
+        ValueError: If the number of parsed orders does not match the header.
     """
-
-    # Convert string paths to Path objects for cross-platform safety
+    
+    # Convert string paths to Path objects for safer filesystem handling
     if isinstance(path, str):
         path = Path(path)
 
-    # Ensure the file exists
+    # Check that the file exists
     if not path.exists():
-        raise FileNotFoundError(f"Fichier introuvable : {path}")
-    
-    # Text format: handle header line
+        raise FileNotFoundError(f"File not found: {path}")
+
+    # Read file and remove empty lines
     with path.open("r", encoding="utf-8") as f:
-        lines = f.readlines()
-        
-    lines = [line.strip() for line in lines]
-    
-    orders: List[Dict[str, object]] = []
+        lines = [line.strip() for line in f if line.strip()]
+
+    # First line indicates the number of orders
+    nb_orders = int(lines[0])
+
+    orders = []
+
+    # Each order is described by two lines
+    #   line i   -> order information
+    #   line i+1 -> list of locations
     for i in range(1, len(lines), 2):
+
+        # Parse order metadata
         info = lines[i].split()
         number = int(info[0])
         volume = int(info[1])
         nb_locations = int(info[2])
 
-        spots = lines[i+1].split()
-        locations_list = []
-        for i in range(nb_locations):
-            locations_list.append(spots[i])
-        locations_list = list(map(int, locations_list))
-        locations_set = set(locations_list)
+        # Parse the list of locations
+        spots = list(map(int, lines[i+1].split()))
 
+        # Store the order in a structured dictionary
         orders.append({
             "id": number,
             "volume": volume,
             "nb_locations": nb_locations,
-            "locations_list": locations_list,
-            "locations_set": locations_set
+            "locations_list": spots[:nb_locations],  # ordered list
+            "locations_set": set(spots[:nb_locations])  # set for fast lookup
         })
+
+    # Verify consistency with the header
+    if len(orders) != nb_orders:
+        raise ValueError("Number of orders does not match header")
 
     return orders
 
 def load_constraints(path: str | Path):
     """
-    Load a square adjacency matrix from a file.
-    Supports text (.txt) with a header line, or NumPy binary (.npy).
+    Load constraints from a text file.
 
-    Text format expected:
-        - First line: number of locations (optional, can be used for verification)
-        - Remaining lines: square matrix (space, tab, or comma separated)
+    Expected file format:
+        - One line with maximum number of orders for a picker and maximum volume for a picker
 
     Args:
-        path (str | Path): Path to the matrix file.
+        path (str | Path): Path to the orders file.
 
     Returns:
-        np.ndarray: Loaded square matrix.
+        list[int]: List containing the maximum number of orders for a picker
+                   and the maximum volume for a picker.
 
     Raises:
         FileNotFoundError: If the file does not exist.
-        ValueError: If the matrix is not square or size doesn't match header.
     """
-
     constraints = []
 
     if isinstance(path, str):
         path = Path(path)
     
     if not path.exists():
-        raise FileNotFoundError(f"Fichier introuvable : {path}")
+        raise FileNotFoundError(f"File not found : {path}")
     
     # Text format: handle header line
     with path.open("r", encoding="utf-8") as f:
@@ -217,16 +237,16 @@ def load_validate_data(adj_matrix_path: str, orders_path: str, constraints_path:
     check_ord = check_orders(orders)
     logger.debug("Check orders %s: %s", orders_path, check_ord)
     if not check_ord[0]:
-        logger.critical("Orders %s are INVALID. Errors: %s", orders_path, check_orders[1])
-        raise ValueError(f"Orders file {orders_path} is invalid: {check_orders[1]}")
+        logger.critical("Orders %s are INVALID. Errors: %s", orders_path, check_ord[1])
+        raise ValueError(f"Orders file {orders_path} is invalid: {check_ord[1]}")
 
     # --- Load and validate constraints ---
     constraints = load_constraints(constraints_path)
     check_constr = check_constraints(constraints)
     logger.debug("Check constraints %s: %s", constraints_path, check_constr)
     if not check_constr[0]:
-        logger.critical("Constraints %s are INVALID. Erros: %s", constraints_path, check_constraints[1])
-        raise ValueError(f"Constraints file {constraints_path} is invalid: {check_constraints[1]}")
+        logger.critical("Constraints %s are INVALID. Erros: %s", constraints_path, check_constr[1])
+        raise ValueError(f"Constraints file {constraints_path} is invalid: {check_constr[1]}")
     
     # --- Compute derived information from raw inputs ---
     # Number of locations and number of orders
@@ -278,4 +298,5 @@ def add_batches_to_data(data, batches, pickers_locations):
     """
     data["batches"] = batches
     data["pickers_locations"] = pickers_locations
+    
     return data

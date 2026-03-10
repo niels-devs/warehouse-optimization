@@ -76,10 +76,10 @@ def check_orders(orders: List[Dict[str, object]]) -> Tuple[bool, List[str]]:
         if len(order["locations_list"]) != len(order["locations_set"]):
             errors.append(f"Order {order['id']}: duplicate locations detected")
 
-        if not errors:
-            return True, ["Orders are valid"]
-        else:
-            return False, errors
+    if not errors:
+        return True, ["Orders are valid"]
+    else:
+        return False, errors
         
 def check_constraints(constraints: List[int]) -> Tuple[bool, List[str]]:
     """
@@ -94,7 +94,7 @@ def check_constraints(constraints: List[int]) -> Tuple[bool, List[str]]:
 
     if not isinstance(constraints[0], int):
         errors.append("Maximum number of orders that a picker can do must be an integer")
-    if not isinstance(constraints[1],int):
+    if not isinstance(constraints[1], int):
         errors.append("Maximum volume that a picker can carry must be an integer")
     
     if len(errors) != 0:

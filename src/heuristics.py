@@ -1,5 +1,3 @@
-from typing import Any, List, Dict
-
 from typing import Dict, Any, List
 
 def greedy_order_batching(data: Dict[str, Any]) -> Dict[int, List[int]]:
@@ -13,6 +11,7 @@ def greedy_order_batching(data: Dict[str, Any]) -> Dict[int, List[int]]:
     Returns:
         Dictionary where each key is a batch ID and value is the list of order indices in that batch.
     """
+    
     # Extract input data
     num_orders = data["num_orders"]
     common_locations = data["common_locations"]   # matrix: shared locations between orders

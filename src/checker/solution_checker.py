@@ -36,10 +36,10 @@ def check_batching_solution(batches: Dict[int, List[int]], data: Dict[str, Any])
                 errors.append(f"Order {o} assigned to multiple pickers")
             assigned_orders.add(o)
         
-        if not errors:
-            return True, ["Valid solution"]
-        else: 
-            return False, errors
+    if not errors:
+        return True, ["Valid solution"]
+    else: 
+        return False, errors
 
 def check_picking_solution(travel: Dict[int, List[Tuple[int, int]]], num_locations: int) -> Tuple[bool, List[str]]:
     """
@@ -62,8 +62,6 @@ def check_picking_solution(travel: Dict[int, List[Tuple[int, int]]], num_locatio
             errors.append(f"picker {p} must depart exactly once from 0")
         if sum(1 for arc in arcs if arc[1] == last_location) != 1:
             errors.append(f"picker {p} must arrive exactly once to {last_location}")
-        
-
     
         # Check that there are no subtours
         next_loc = {i:j for i,j in arcs}

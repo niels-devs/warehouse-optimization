@@ -1,10 +1,28 @@
 from collections import defaultdict
 from typing import List, Dict, Set
 from math import ceil
+import numpy as np
 
-def get_locations_and_orders_counts(adj_matrix, orders: List[Dict[str, object]]):
+def get_locations_and_orders_counts(adj_matrix: np.ndarray, orders: List[Dict[str, object]]):
+    """
+    This function returns the number of warehouse locations and the
+    number of orders in the instance.
+
+    Args:
+        adj_matrix (list[list[float]]): Adjacency matrix representing
+            the travel distances between warehouse locations.
+        orders (List[Dict[str, object]]): List of orders, where each
+            order contains information such as locations to visit,
+            volume, and order ID.
+
+    Returns:
+        Tuple[int, int]:
+            - Number of locations in the warehouse.
+            - Number of orders in the instance.
+    """
     nb_locations = len(adj_matrix)
     nb_orders = len(orders)
+
     return nb_locations, nb_orders
 
 def max_pickers_bounds(orders, nb_orders, max_nb_orders, max_vol, vol):
@@ -43,8 +61,27 @@ def is_loc_in_order(nb_locations: int, orders: List[Dict[str, object]]):
     return if_loc_in_ord
 
 def common_elements(if_loc_in_ord, nb_orders, nb_locations):
-    result = defaultdict(int)
+    """
+    Compute the number of common locations between each pair of orders.
 
+    For every pair of orders (o1, o2), the function counts how many
+    warehouse locations appear in both orders. The result is stored in
+    a dictionary where each key is a pair of orders and the value is
+    the number of shared locations.
+
+    Args:
+        if_loc_in_ord : Binary matrix indicating whether
+            location `loc` is included in order `o`.
+            Value is 1 if the location is part of the order, 0 otherwise.
+        nb_orders (int): Total number of orders.
+        nb_locations (int): Total number of warehouse locations.
+
+    Returns:
+        Dict[Tuple[int, int], int]:
+            Dictionary mapping each pair of orders (o1, o2) to the
+            number of common locations they share.
+    """
+    result = defaultdict(int)
     for o1 in range(nb_orders):
         for o2 in range(o1 + 1, nb_orders):
             for loc in range(nb_locations):

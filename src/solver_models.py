@@ -1,75 +1,148 @@
 import pulp as pl
 from typing import List, Dict, Set
 
-def model_batching(data) -> Dict:
+def model_batching(data, time_limit=300) -> Dict:
+    """
+    Solve the order batching problem using a mixed-integer linear programming model.
+
+    The model assigns orders to pickers (batches) while maximizing the number of
+    common picking locations between orders in the same batch. The assignment
+    must satisfy capacity constraints on both the number of orders and the
+    total volume handled by each picker.
+
+    Decision variables:
+        y[p,o] = 1 if order o is assigned to picker p, 0 otherwise
+        z[p,o,o2] = 1 if orders o and o2 are assigned to the same picker p
+
+    Objective:
+        Maximize the total number of shared locations between orders assigned
+        to the same picker.
+
+    Constraints:
+        - Each order must be assigned to exactly one picker.
+        - Each picker can handle at most `max_nb_orders` orders.
+        - The total volume assigned to a picker cannot exceed `max_vol`.
+        - Linking constraints ensure that z[p,o,o2] = 1 only if both orders
+          o and o2 are assigned to picker p.
+
+    Args:
+        data (dict): Dictionary containing the instance data with the following keys:
+            - "order_volumes": list[int], volume of each order
+            - "num_orders": int, total number of orders
+            - "max_pickers": int, maximum number of pickers (batches)
+            - "max_nb_orders": int, maximum number of orders per picker
+            - "max_vol": int, maximum volume capacity per picker
+            - "common_locations": 2D matrix where a[o,o2] is the number of
+              common picking locations between orders o and o2
+
+        time_limit (int, optional): Maximum solving time in seconds.
+            Default is 300 seconds.
+
+    Returns:
+        Dict[int, List[int]]:
+            Dictionary where keys are picker IDs and values are the list of
+            orders assigned to that picker. Empty batches are removed.
+    """
+     
     vol = data["order_volumes"]
-
     nb_orders = data["num_orders"]
-
     max_pickers = data["max_pickers"]
     max_nb_orders = data["max_nb_orders"]
     max_vol = data["max_vol"]
-
     a = data["common_locations"]
 
-    # maximization problem creation
+    # Maximization problem
     model = pl.LpProblem("model_batching", pl.LpMaximize)
 
-    ## Variables
+    # Decision variables
+    y = pl.LpVariable.dicts(
+        "y",
+        [(p,o) for p in range(max_pickers) for o in range(nb_orders)],
+        cat="Binary")
+    z = pl.LpVariable.dicts(
+        "z", 
+        [(p,o,o2) for p in range(max_pickers) for o in range(nb_orders) for o2 in range(o+1, nb_orders)], 
+        cat="Binary"
+    )
 
-    # decison variable that is equal to 1 if the picker p handles the order o
-    y = pl.LpVariable.dicts("y", [(p,o) for p in range(max_pickers) for o in range(nb_orders)], cat="Binary")
+    # Objective function
+    model += pl.lpSum(z[p,o,o2] * a[o,o2] for p in range(max_pickers) for o in range(nb_orders) for o2 in range(o+1, nb_orders))
 
-    # Decision variable equal to the product of y_po and y_po'
-    z = pl.LpVariable.dicts("z", [(p,o,o2) for p in range(max_pickers) for o in range(nb_orders) for o2 in range(nb_orders) if o<o2], cat="Binary")
-
-    ## Objective function
-    model += sum(z[p,o,o2] * a[o,o2] for p in range(max_pickers) for o in range(nb_orders) for o2 in range(nb_orders) if o<o2)
-
-    ## Constraints
-
-    # a minimum of nb_orders must be done
-    model += sum(y[p,o] for p in range(max_pickers) for o in range(nb_orders)) >= nb_orders
-
-    # An order can only be done once
+    # Constraints
+    # Each order must be done exactly once
     for o in range(nb_orders):
-        model += sum(y[p,o] for p in range(max_pickers)) == 1
+        model += pl.lpSum(y[p,o] for p in range(max_pickers)) == 1
 
-    # A picker can't do more than max_nb_ord
+    # Each picker constraints: max orders and max volume
     for p in range(max_pickers):
-        model += sum(y[p,o] for o in range(nb_orders)) <= max_nb_orders
+        model += pl.lpSum(y[p,o] for o in range(nb_orders)) <= max_nb_orders
+        model += pl.lpSum(y[p,o] * vol[o] for o in range(nb_orders)) <= max_vol
 
-    # A picker can't carry more than max_vol
-    for p in range(max_pickers):
-        model += sum(y[p,o] * vol[o] for o in range(nb_orders)) <= max_vol
-
-    # z[p, o, o2] is the product between y[p, o] and y[p, o2]
+    # Linking z and y: z[p,o,o2] = y[p,o] * y[p,o2]
     for p in range(max_pickers):
         for o in range(nb_orders):
             for o2 in range(o+1, nb_orders):
                 model += z[p,o,o2] <= y[p,o]
                 model += z[p,o,o2] <= y[p,o2]
                 model += z[p,o,o2] >= y[p,o] + y[p,o2] - 1
-    
-    status = model.solve()
+
+    # Set a time limit of 5 minutes
+    solver = pl.PULP_CBC_CMD(timeLimit=time_limit, msg=True)
+
+    # Solve the model
+    status = model.solve(solver)
     print("Solver status:", pl.LpStatus[status])
 
-    solution = {}
-    for p in range(max_pickers):
-        for o in range(nb_orders):
-            solution[p,o] = y[p,o].varValue or 0
-
+    # Extract solution
     batches = {
-        p : [o for o in range(nb_orders) if (solution[p,o] or 0) > 0.5]
+        p: [o for o in range(nb_orders) if (y[p,o].varValue or 0) > 0.5]
         for p in range(max_pickers)
     }
 
-   # Remove batches that do not contain any orders
+    # Remove empty batches
     batches = {p: orders for p, orders in batches.items() if orders}
 
     return batches
 
-def model_picking(data):
+def model_picking(data, time_limit=300):
+    """
+    Solve the picker routing problem using a mixed-integer linear programming model.
+
+    For each picker, the model determines the optimal route through the set of
+    assigned picking locations. The objective is to minimize the total travel
+    distance based on the warehouse adjacency matrix.
+
+    Decision variables:
+        x[i,j,p] = 1 if picker p travels from location i to location j
+        u[i,p] = order of visit of location i by picker p (MTZ formulation)
+
+    Objective:
+        Minimize the total travel distance of all pickers.
+
+    Constraints:
+        - Each location (except the starting point) must be entered exactly once.
+        - Each location (except the ending point) must be left exactly once.
+        - No arc can leave the final location.
+        - Miller–Tucker–Zemlin (MTZ) constraints eliminate sub-tours.
+        - The starting location is fixed at position 0 and the ending location
+          at the last position in the route.
+
+    Args:
+        data (dict): Dictionary containing the instance data with the following keys:
+            - "adj_matrix": 2D matrix representing travel distances between locations
+            - "pickers_locations": dict[int, list[int]] mapping each picker to
+              the list of locations they must visit
+
+        time_limit (int, optional): Maximum solving time in seconds.
+            Default is 300 seconds.
+
+    Returns:
+        Tuple[Dict[int, List[Tuple[int, int]]], float]:
+            - Dictionary where each key is a picker ID and the value is the list
+              of arcs (i, j) traveled by that picker.
+            - Objective value corresponding to the total travel distance.
+    """
+    
     adj_matrix = data["adj_matrix"]
 
     pickers_locations = data["pickers_locations"]
@@ -130,7 +203,12 @@ def model_picking(data):
         model += u[start,p] == 0
         model += u[end,p] == len(locs)-1
 
-    model.solve()
+    # Set a time limit of 5 minutes
+    solver = pl.PULP_CBC_CMD(timeLimit=time_limit, msg=True)
+
+    # Solve the model
+    status = model.solve(solver)
+    print("Solver status:", pl.LpStatus[status])
 
     objective = pl.value(model.objective)
 
