@@ -154,7 +154,7 @@ def model_picking(data, time_limit=300):
 
     # Decision variable indicating whether picker p travels from location i to location j
     x = {}
-    for p, locs in pickers_locations.items():  # seulement les pickers avec des locations
+    for p, locs in pickers_locations.items():
         for i in locs:
             for j in locs:
                 if i != j:
@@ -227,6 +227,206 @@ def model_picking(data, time_limit=300):
             if i != j and solution.get((i,j,p), 0) > 0.5]
         for p, locs in pickers_locations.items()
         if any(solution.get((i,j,p), 0) > 0.5 for i in locs for j in locs if i != j)
+    }
+    """u_values = {
+    p: [sol[i,p] for i in locations_pickers[p]]
+    for p in range(max_pickers) if locations_pickers[p]
+    }"""
+
+    return travel, objective
+
+def main_model(data, time_limit=300):
+    """
+    Solve the batching and picking problem using a mixed-integer linear programming model.
+
+    The model groups orders into batches, respecting capacity constraints, 
+    and determines the optimal route for each picker through the set of assigned picking locations. 
+    The objective is to minimise the total travel distance based on the warehouse adjacency matrix.
+
+    Decision variables:
+        x[i,j,p] = 1 if picker p travels from location i to location j
+        u[i,p] = order of visit of location i by picker p (MTZ formulation)
+
+    Objective:
+        Minimize the total travel distance of all pickers.
+
+    Constraints:
+        - Each location (except the starting point) must be entered exactly once.
+        - Each location (except the ending point) must be left exactly once.
+        - No arc can leave the final location.
+        - Miller–Tucker–Zemlin (MTZ) constraints eliminate sub-tours.
+        - The starting location is fixed at position 0 and the ending location
+          at the last position in the route.
+
+    Args:
+        data (dict): Dictionary containing the instance data with the following keys:
+            - "adj_matrix": 2D matrix representing travel distances between locations
+            - "pickers_locations": dict[int, list[int]] mapping each picker to
+              the list of locations they must visit
+
+        time_limit (int, optional): Maximum solving time in seconds.
+            Default is 300 seconds.
+
+    Returns:
+        Tuple[Dict[int, List[Tuple[int, int]]], float]:
+            - Dictionary where each key is a picker ID and the value is the list
+              of arcs (i, j) traveled by that picker.
+            - Objective value corresponding to the total travel distance.
+    """
+
+    vol = data["order_volumes"]
+    O = data["num_orders"]
+    P = data["max_pickers"]
+    max_nb_orders = data["max_nb_orders"]
+    max_vol = data["max_vol"]
+    adj_matrix = data["adj_matrix"]
+    I = data["num_locations"]
+    a = data["loc_in_order"]
+    M = I
+
+    # minimization problem creation
+    model = pl.LpProblem("main_model", pl.LpMinimize)
+
+    ## Variables
+
+    # Decision variable indicating whether batch b contains order o
+    y = {}
+    for b in range(P):
+        for o in range(O):
+            y[(b,o)] = pl.LpVariable(f"y_{b}_{o}", cat='Binary')
+
+    # Decision variable indicating whether picker p contains location i
+    h = {}
+    for p in range(P):
+        for i in range(I):
+            h[(p,i)] = pl.LpVariable(f"h_{p}_{i}", cat='Binary')
+
+    # Decision variable indicating whether picker p travels from location i to location j
+    x = {}
+    for p in range(P):
+        for i in range(I):
+            for j in range(I):
+                if i != j:
+                    x[(i,j,p)] = pl.LpVariable(f"x_{i}_{j}_{p}", cat="Binary")
+
+    # Continuous variables: MTZ for sub-tour elimination
+    u = {}
+    for p in range(P):
+        for i in range(I):
+            u[(i,p)] = pl.LpVariable(f"u_{i}_{p}", lowBound=0, upBound=I, cat="Integer")
+
+    # Integer variable for the number of locations of each picker
+    num_locations = {}
+    for p in range(P):
+        num_locations[p] = pl.LpVariable(f"num_locations_{p}", cat='Integer', lowBound=0)
+
+    ## Objective function
+    model += pl.lpSum(
+        adj_matrix[i][j] * x[i,j,p]
+        for (i,j,p) in x
+    )
+
+    ## Constraints
+
+    # Each order must be grouped into a batch
+    for o in range(O):
+        model += pl.lpSum(y[b,o] for b in range(P)) == 1
+
+    # The maximum number of orders per batch is max_nb_orders
+    for b in range(P):
+        model += pl.lpSum(y[b,o] for o in range(O)) <= max_nb_orders
+    
+    # Each batch has a maximum volume 
+    for b in range(P):
+        model += pl.lpSum(y[b,o] * vol[o] for o in range(O)) <= max_vol 
+
+    # These two constraints determine the locations that the pickers must visit.
+    for b in range(P):
+        for i in range(I):
+            model += pl.lpSum(y[b,o] * a[i,o] for o in range(O)) >= h[b,i]
+    
+    for b in range(P):
+        for i in range(I):
+            for o in range(O):
+                model += y[b,o] * a[i,o] <= h[b,i]
+
+    # 
+    for p in range(P):
+        model += pl.lpSum(h[(p,i)] for i in range(I)) == num_locations[p]
+
+    # Pickers can't travel from/to a location if the location is not assigned to them
+    for i in range(I):
+        for j in range(I):
+            if i != j:
+                for p in range(P):
+                    model += x[(i,j,p)] <= h[(p,i)]
+
+    for i in range(I):
+        for j in range(I):
+            if i != j:
+                for p in range(P):
+                    model += x[(i,j,p)] <= h[(p,j)]
+
+    # Each location (except end) must be left exactly once
+    for p in range(P):
+        for j in range(I):
+            if j != 0:
+                model += pl.lpSum(x[(i,j,p)] for i in range(I) if i != j) == h[(p,j)]
+
+    # No arcs leaving the arrival point
+    for p in range(P):
+        for i in range(I):
+            if i != I-1:
+                model += pl.lpSum(x[(i,j,p)] for j in range(I) if i != j) == h[(p,i)]
+
+    # No arcs arriving at the starting point
+    for p in range(P):
+        for j in range(1, I):
+            model += x[(j,0,p)] == 0
+
+    # No arcs leaving at the last point
+    for p in range(P):
+        for i in range(I-1):
+            model += x[(I-1, i,p)] == 0
+
+    # Sub-tour elimination (Miller-Tucker-Zemlin) idée utiliser une autre formulation
+    for p in range(P):
+        for i in range(I):
+            for j in range(I):
+                if i != j and j != 0 and i != I-1:
+                    model += u[i,p] - u[j,p] + x[(i,j,p)] * M <= M - 1
+
+    # Fix start and end in u variables
+    for p in range(P):
+        model += u[0,p] == 0
+        model += u[I-1,p] == M
+
+    #
+
+    # Set a time limit of 5 minutes
+    solver = pl.PULP_CBC_CMD(timeLimit=time_limit, msg=True)
+
+    # Solve the model
+    status = model.solve(solver)
+    print("Solver status:", pl.LpStatus[status])
+
+    objective = pl.value(model.objective)
+
+    sol={}
+    solution = {}
+    for p in range(P):
+        for i in range(I):
+            sol[i,p] = u[i,p].varValue
+            for j in range(I):
+                if i != j:
+                    solution[i,j,p] = x[i,j,p].varValue
+    travel = {
+        p: [(i, j)
+            for i in range(I)
+            for j in range(I)
+            if i != j and solution.get((i,j,p), 0) > 0.5]
+        for p in range(P)
+        if any(solution.get((i,j,p), 0) > 0.5 for i in range(I) for j in range(I) if i != j)
     }
     """u_values = {
     p: [sol[i,p] for i in locations_pickers[p]]

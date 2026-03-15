@@ -123,3 +123,25 @@ def get_picker_locations_from_ifloc(
             picker_locations[picker] = sorted(locations)
 
     return picker_locations
+
+def evaluate_batches(batches: Dict[int, list], common_locations) -> int:
+    """
+    Compute the total number of shared locations between orders in the same batch.
+
+    Args:
+        batches (Dict[int, list]): Dictionary mapping batch_id → list of order indices
+        common_locations (2D array/matrix): common_locations[o1, o2] = number of shared locations
+
+    Returns:
+        int: total score of the batching solution
+    """
+    score = 0
+
+    for batch in batches.values():
+        for i in range(len(batch)):
+            for j in range(i+1, len(batch)):
+                o1 = batch[i]
+                o2 = batch[j]
+                score += common_locations[o1, o2]
+
+    return score
