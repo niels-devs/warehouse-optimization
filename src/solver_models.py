@@ -1,5 +1,6 @@
 import pulp as pl
 from typing import List, Dict, Set
+import time
 
 def model_batching(data, time_limit=300) -> Dict:
     """
@@ -237,41 +238,54 @@ def model_picking(data, time_limit=300):
 
 def main_model(data, time_limit=300):
     """
-    Solve the batching and picking problem using a mixed-integer linear programming model.
+    Solve the joint order batching and picker routing problem using a MILP model.
 
-    The model groups orders into batches, respecting capacity constraints, 
-    and determines the optimal route for each picker through the set of assigned picking locations. 
-    The objective is to minimise the total travel distance based on the warehouse adjacency matrix.
+    The model assigns orders to batches (one batch per picker), subject to capacity 
+    constraints, and determines the optimal picking route for each picker.
 
-    Decision variables:
-        x[i,j,p] = 1 if picker p travels from location i to location j
-        u[i,p] = order of visit of location i by picker p (MTZ formulation)
+    Each picker:
+        - starts at the depot (location 0)
+        - ends at the final location (location I-1)
+        - does NOT return to the depot
 
     Objective:
         Minimize the total travel distance of all pickers.
 
+    Decision variables:
+        y[b,o] = 1 if order o is assigned to batch b
+        h[p,i] = 1 if picker p visits location i
+        x[i,j,p] = 1 if picker p travels from location i to location j
+        u[i,p] = position of location i in the route of picker p (MTZ variables)
+
     Constraints:
-        - Each location (except the starting point) must be entered exactly once.
-        - Each location (except the ending point) must be left exactly once.
-        - No arc can leave the final location.
-        - Miller–Tucker–Zemlin (MTZ) constraints eliminate sub-tours.
-        - The starting location is fixed at position 0 and the ending location
-          at the last position in the route.
+        - Each order is assigned to exactly one batch.
+        - Each batch respects capacity constraints (number of orders and volume).
+        - Locations to visit are induced by assigned orders.
+        - Flow conservation:
+            * Each visited location (except start/end) has exactly one incoming and one outgoing arc.
+        - The depot (0) is the starting point (no incoming constraint needed).
+        - The final location (I-1) has no outgoing arcs.
+        - MTZ constraints eliminate sub-tours.
+        - Start and end positions are fixed in MTZ variables.
 
     Args:
-        data (dict): Dictionary containing the instance data with the following keys:
-            - "adj_matrix": 2D matrix representing travel distances between locations
-            - "pickers_locations": dict[int, list[int]] mapping each picker to
-              the list of locations they must visit
+        data (dict): Dictionary containing instance data:
+            - "adj_matrix": distance matrix between locations
+            - "order_volumes": volume of each order
+            - "num_orders": number of orders
+            - "max_pickers": number of pickers (batches)
+            - "max_nb_orders": maximum number of orders per batch
+            - "max_vol": maximum volume per batch
+            - "num_locations": number of locations
+            - "loc_in_order": binary matrix (location i needed for order o)
 
-        time_limit (int, optional): Maximum solving time in seconds.
-            Default is 300 seconds.
+        time_limit (int): Maximum solving time in seconds.
 
     Returns:
-        Tuple[Dict[int, List[Tuple[int, int]]], float]:
-            - Dictionary where each key is a picker ID and the value is the list
-              of arcs (i, j) traveled by that picker.
-            - Objective value corresponding to the total travel distance.
+        Tuple:
+            - travel (dict): arcs used by each picker
+            - objective (float): total travel distance
+            - total_time (float): solving time in seconds
     """
 
     vol = data["order_volumes"]
@@ -313,12 +327,7 @@ def main_model(data, time_limit=300):
     u = {}
     for p in range(P):
         for i in range(I):
-            u[(i,p)] = pl.LpVariable(f"u_{i}_{p}", lowBound=0, upBound=I, cat="Integer")
-
-    # Integer variable for the number of locations of each picker
-    num_locations = {}
-    for p in range(P):
-        num_locations[p] = pl.LpVariable(f"num_locations_{p}", cat='Integer', lowBound=0)
+            u[(i,p)] = pl.LpVariable(f"u_{i}_{p}", lowBound=0, upBound=I-1, cat="Integer")
 
     ## Objective function
     model += pl.lpSum(
@@ -350,23 +359,6 @@ def main_model(data, time_limit=300):
             for o in range(O):
                 model += y[b,o] * a[i,o] <= h[b,i]
 
-    # 
-    for p in range(P):
-        model += pl.lpSum(h[(p,i)] for i in range(I)) == num_locations[p]
-
-    # Pickers can't travel from/to a location if the location is not assigned to them
-    for i in range(I):
-        for j in range(I):
-            if i != j:
-                for p in range(P):
-                    model += x[(i,j,p)] <= h[(p,i)]
-
-    for i in range(I):
-        for j in range(I):
-            if i != j:
-                for p in range(P):
-                    model += x[(i,j,p)] <= h[(p,j)]
-
     # Each location (except end) must be left exactly once
     for p in range(P):
         for j in range(I):
@@ -378,11 +370,6 @@ def main_model(data, time_limit=300):
         for i in range(I):
             if i != I-1:
                 model += pl.lpSum(x[(i,j,p)] for j in range(I) if i != j) == h[(p,i)]
-
-    # No arcs arriving at the starting point
-    for p in range(P):
-        for j in range(1, I):
-            model += x[(j,0,p)] == 0
 
     # No arcs leaving at the last point
     for p in range(P):
@@ -399,16 +386,19 @@ def main_model(data, time_limit=300):
     # Fix start and end in u variables
     for p in range(P):
         model += u[0,p] == 0
-        model += u[I-1,p] == M
-
-    #
+        model += u[I-1,p] >= M-1
 
     # Set a time limit of 5 minutes
     solver = pl.PULP_CBC_CMD(timeLimit=time_limit, msg=True)
 
+    start = time.perf_counter()
+
     # Solve the model
     status = model.solve(solver)
-    print("Solver status:", pl.LpStatus[status])
+
+    end = time.perf_counter()
+
+    total_time = end - start
 
     objective = pl.value(model.objective)
 
@@ -428,9 +418,5 @@ def main_model(data, time_limit=300):
         for p in range(P)
         if any(solution.get((i,j,p), 0) > 0.5 for i in range(I) for j in range(I) if i != j)
     }
-    """u_values = {
-    p: [sol[i,p] for i in locations_pickers[p]]
-    for p in range(max_pickers) if locations_pickers[p]
-    }"""
 
-    return travel, objective
+    return travel, objective, total_time
