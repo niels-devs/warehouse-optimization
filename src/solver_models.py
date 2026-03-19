@@ -1,6 +1,19 @@
 import pulp as pl
 from typing import List, Dict, Set
 import time
+import logging
+
+from checker.solution_checker import (
+    check_batching_solution,
+    check_picking_solution
+)
+
+from utils import (
+    get_picker_locations_from_ifloc
+)
+
+logger = logging.getLogger(__name__)
+
 
 def model_batching(data, time_limit=300) -> Dict:
     """
@@ -420,3 +433,28 @@ def main_model(data, time_limit=300):
     }
 
     return travel, objective, total_time
+
+def run_batching(data):
+    batches = model_batching(data)
+    check_batching = check_batching_solution(batches, data)
+    logger.debug("Check batching solution: %s", check_batching)
+    print(check_batching)
+    if not check_batching[0]:
+        logger.critical("Batching solution is INVALID. Erros: %s", check_batching[1])
+        raise ValueError(f"Batching solution is INVALID: {check_batching[1]}")
+    # get locations for each picker
+    locations_pickers = get_picker_locations_from_ifloc(batches, data["loc_in_order"], data["num_locations"])
+    return batches, locations_pickers
+
+def run_picking(data):
+    travel, objective = model_picking(data)
+    check_picking = check_picking_solution(travel, data["num_locations"])
+    logger.debug("Check batching solution: %s", check_picking)
+    if not check_picking[0]:
+        logger.critical("Picking solution is INVALID. Erros: %s", check_picking[1])
+        raise ValueError(f"Picking solution is INVALID: {check_picking[1]}")
+    return travel, objective
+
+def run_main_model(data):
+    travel, objective, time = main_model(data)
+    return travel, objective, time

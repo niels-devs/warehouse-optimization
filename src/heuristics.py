@@ -2,10 +2,18 @@ from typing import Dict, Any, List
 import copy
 import random
 import time
+import logging
 
 from utils import(
-    evaluate_batches
+    evaluate_batches,
+    get_picker_locations_from_ifloc
 )
+
+from checker.solution_checker import(
+    check_batching_solution
+)
+
+logger = logging.getLogger(__name__)
 
 def greedy_order_batching(data: Dict[str, Any]) -> Dict[int, List[int]]:
     """
@@ -166,3 +174,18 @@ def local_search_swap(
             current_solution = new_solution
 
     return best_solution
+
+def run_greedy(data):
+    batches = greedy_order_batching(data)
+    check_batching = check_batching_solution(batches, data)
+    logger.debug("Check batching solution: %s", check_batching)
+    if not check_batching[0]:
+        logger.critical("Batching solution is INVALID. Erros: %s", check_batching[1])
+        raise ValueError(f"Batching solution is INVALID: {check_batching[1]}")
+    # get locations for each picker
+    locations_pickers = get_picker_locations_from_ifloc(batches, data["loc_in_order"], data["num_locations"])
+    return batches, locations_pickers
+
+def run_local_search_swap(batches, data):
+    new_batches = local_search_swap(batches, data, 2)
+    return new_batches
