@@ -2,6 +2,7 @@ import pulp as pl
 from typing import List, Dict, Set
 import time
 import logging
+import math
 
 from checker.solution_checker import (
     check_batching_solution,
@@ -303,44 +304,51 @@ def main_model(data, time_limit=300):
 
     vol = data["order_volumes"]
     O = data["num_orders"]
-    P = data["max_pickers"]
+    P = math.ceil(data["max_pickers"]/3)
     max_nb_orders = data["max_nb_orders"]
     max_vol = data["max_vol"]
     adj_matrix = data["adj_matrix"]
-    I = data["num_locations"]
     a = data["loc_in_order"]
+    I = data["num_locations"]
     M = I
+    locations_to_visit = [i for i in range(I) if any(a[i,o] != 0 for o in range(O))]
 
     # minimization problem creation
     model = pl.LpProblem("main_model", pl.LpMinimize)
 
     ## Variables
 
+    logger.info("=== Variables number ===")
+
     # Decision variable indicating whether batch b contains order o
     y = {}
     for b in range(P):
         for o in range(O):
             y[(b,o)] = pl.LpVariable(f"y_{b}_{o}", cat='Binary')
+    logger.info("y=%s", len(y))
 
     # Decision variable indicating whether picker p contains location i
     h = {}
     for p in range(P):
-        for i in range(I):
+        for i in locations_to_visit:
             h[(p,i)] = pl.LpVariable(f"h_{p}_{i}", cat='Binary')
+    logger.info("h=%s", len(h))
 
     # Decision variable indicating whether picker p travels from location i to location j
     x = {}
     for p in range(P):
-        for i in range(I):
-            for j in range(I):
+        for i in locations_to_visit:
+            for j in locations_to_visit:
                 if i != j:
                     x[(i,j,p)] = pl.LpVariable(f"x_{i}_{j}_{p}", cat="Binary")
+    logger.info("x=%s", len(x))
 
     # Continuous variables: MTZ for sub-tour elimination
     u = {}
     for p in range(P):
-        for i in range(I):
+        for i in locations_to_visit:
             u[(i,p)] = pl.LpVariable(f"u_{i}_{p}", lowBound=0, upBound=I-1, cat="Integer")
+    logger.info("u=%s", len(u))
 
     ## Objective function
     model += pl.lpSum(
@@ -349,6 +357,8 @@ def main_model(data, time_limit=300):
     )
 
     ## Constraints
+
+    logger.info("=== Constraints number ===")
 
     # Each order must be grouped into a batch
     for o in range(O):
@@ -364,35 +374,43 @@ def main_model(data, time_limit=300):
 
     # These two constraints determine the locations that the pickers must visit.
     for b in range(P):
-        for i in range(I):
+        for i in locations_to_visit:
             model += pl.lpSum(y[b,o] * a[i,o] for o in range(O)) >= h[b,i]
+
+    logger.info("sum(y[b,o] * a[i,o] for o in range(O)) >= h[b,i]=%s", len(model.constraints))
     
     for b in range(P):
-        for i in range(I):
+        for i in locations_to_visit:
             for o in range(O):
-                model += y[b,o] * a[i,o] <= h[b,i]
+                if a[i,o] != 0:
+                    model += y[b,o] * a[i,o] <= h[b,i]
+
+    logger.info("y[b,o] * a[i,o] <= h[b,i]=%s", len(model.constraints))
+
+    # Each location (except start) must be entered exactly once
+    for p in range(P):
+        for j in locations_to_visit:
+            if j != 0:
+                model += pl.lpSum(x[(i,j,p)] for i in locations_to_visit if i != j) == h[(p,j)]
+
+    logger.info("sum(y[b,o] * a[i,o] <= h[b,i] for i in loc)=%s", len(model.constraints))
 
     # Each location (except end) must be left exactly once
     for p in range(P):
-        for j in range(I):
-            if j != 0:
-                model += pl.lpSum(x[(i,j,p)] for i in range(I) if i != j) == h[(p,j)]
-
-    # No arcs leaving the arrival point
-    for p in range(P):
-        for i in range(I):
+        for i in locations_to_visit:
             if i != I-1:
-                model += pl.lpSum(x[(i,j,p)] for j in range(I) if i != j) == h[(p,i)]
+                model += pl.lpSum(x[(i,j,p)] for j in locations_to_visit if i != j) == h[(p,i)]
 
-    # No arcs leaving at the last point
+    # No arcs leaving from the last location
     for p in range(P):
-        for i in range(I-1):
-            model += x[(I-1, i,p)] == 0
+        for i in locations_to_visit:
+            if i != I-1:
+                model += x[(I-1, i,p)] == 0
 
     # Sub-tour elimination (Miller-Tucker-Zemlin) idée utiliser une autre formulation
     for p in range(P):
-        for i in range(I):
-            for j in range(I):
+        for i in locations_to_visit:
+            for j in locations_to_visit:
                 if i != j and j != 0 and i != I-1:
                     model += u[i,p] - u[j,p] + x[(i,j,p)] * M <= M - 1
 
@@ -415,30 +433,37 @@ def main_model(data, time_limit=300):
 
     objective = pl.value(model.objective)
 
+    batches = {
+        p: [o for o in range(O) if (y[p,o].varValue or 0) > 0.5]
+        for p in range(P)
+    }
+
+    # Remove empty batches
+    batches = {p: orders for p, orders in batches.items() if orders}
+
     sol={}
     solution = {}
     for p in range(P):
-        for i in range(I):
+        for i in locations_to_visit:
             sol[i,p] = u[i,p].varValue
-            for j in range(I):
+            for j in locations_to_visit:
                 if i != j:
                     solution[i,j,p] = x[i,j,p].varValue
     travel = {
         p: [(i, j)
-            for i in range(I)
-            for j in range(I)
+            for i in locations_to_visit
+            for j in locations_to_visit
             if i != j and solution.get((i,j,p), 0) > 0.5]
         for p in range(P)
-        if any(solution.get((i,j,p), 0) > 0.5 for i in range(I) for j in range(I) if i != j)
+        if any(solution.get((i,j,p), 0) > 0.5 for i in locations_to_visit for j in locations_to_visit if i != j)
     }
 
-    return travel, objective, total_time
+    return batches, travel, objective, total_time
 
 def run_batching(data):
     batches = model_batching(data)
     check_batching = check_batching_solution(batches, data)
     logger.debug("Check batching solution: %s", check_batching)
-    print(check_batching)
     if not check_batching[0]:
         logger.critical("Batching solution is INVALID. Erros: %s", check_batching[1])
         raise ValueError(f"Batching solution is INVALID: {check_batching[1]}")
@@ -449,12 +474,22 @@ def run_batching(data):
 def run_picking(data):
     travel, objective = model_picking(data)
     check_picking = check_picking_solution(travel, data["num_locations"])
-    logger.debug("Check batching solution: %s", check_picking)
+    logger.debug("Check picking solution: %s", check_picking)
     if not check_picking[0]:
         logger.critical("Picking solution is INVALID. Erros: %s", check_picking[1])
         raise ValueError(f"Picking solution is INVALID: {check_picking[1]}")
     return travel, objective
 
 def run_main_model(data):
-    travel, objective, time = main_model(data)
-    return travel, objective, time
+    batches, travel, objective, time = main_model(data)
+    check_batching = check_batching_solution(batches, data)
+    logger.debug("Check batching solution: %s", check_batching)
+    if not check_batching[0]:
+        logger.critical("Batching solution is INVALID. Erros: %s", check_batching[1])
+        raise ValueError(f"Batching solution is INVALID: {check_batching[1]}")
+    check_picking = check_picking_solution(travel, data["num_locations"])
+    logger.debug("Check picking solution: %s", check_picking)
+    if not check_picking[0]:
+        logger.critical("Picking solution is INVALID. Erros: %s", check_picking[1])
+        raise ValueError(f"Picking solution is INVALID: {check_picking[1]}")
+    return batches, travel, objective, time

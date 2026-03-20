@@ -175,6 +175,82 @@ def local_search_swap(
 
     return best_solution
 
+def local_search_move(
+    batches: Dict[int, List[int]],
+    data: Dict[str, Any],
+    time_limit: float = 300.0
+) -> Dict[int, List[int]]:
+    """
+    Local Search metaheuristic for Order Batching using move for orders.
+
+    This function improves an initial batching solution by iteratively moving
+    one order from one batch to another if the move increases the total score.
+    The objective is to maximize the number of shared locations within batches.
+    The search stops when the specified time limit is reached.
+
+    Args:
+        batches (Dict[int, List[int]]): Initial solution mapping batch_id → list of order indices.
+        data (Dict[str, Any]): Contains:
+            - common_locations: 2D array/matrix of shared locations between orders.
+            - max_vol: Maximum allowed volume per batch.
+            - order_volumes: List of volumes for each order.
+        time_limit (float, optional): Maximum allowed runtime in seconds (default: 300).
+
+    Returns:
+        Dict[int, List[int]]: Improved batching solution mapping batch_id → list of order indices.
+    """
+
+    common_locations = data["common_locations"]
+    max_volume = data["max_vol"]
+    volumes = data["order_volumes"]
+
+    current_solution = copy.deepcopy(batches)
+    best_solution = copy.deepcopy(current_solution)
+    best_score = evaluate_batches(best_solution, common_locations)
+
+    batch_ids = list(current_solution.keys())
+    start_time = time.time()
+
+    while time.time() - start_time < time_limit:
+
+        # Randomly pick a source batch with at least one order
+        source_batches = [b for b in batch_ids if current_solution[b]]
+        if not source_batches:
+            break
+        b1 = random.choice(source_batches)
+
+        # Randomly pick an order from the source batch
+        o = random.choice(current_solution[b1])
+
+        # Randomly pick a target batch different from b1
+        target_batches = [b for b in batch_ids if b != b1]
+        if not target_batches:
+            continue
+        b2 = random.choice(target_batches)
+
+        # Check volume constraint if we move order o to batch b2
+        vol_b1 = sum(volumes[x] for x in current_solution[b1]) - volumes[o]
+        vol_b2 = sum(volumes[x] for x in current_solution[b2]) + volumes[o]
+
+        if vol_b1 > max_volume or vol_b2 > max_volume:
+            continue  # move not feasible
+
+        # Perform the move
+        new_solution = copy.deepcopy(current_solution)
+        new_solution[b1].remove(o)
+        new_solution[b2].append(o)
+
+        # Evaluate new solution
+        new_score = evaluate_batches(new_solution, common_locations)
+
+        # Accept only if it improves the objective
+        if new_score > best_score:
+            best_solution = new_solution
+            best_score = new_score
+            current_solution = new_solution
+
+    return best_solution
+
 def run_greedy(data):
     batches = greedy_order_batching(data)
     check_batching = check_batching_solution(batches, data)
@@ -186,6 +262,10 @@ def run_greedy(data):
     locations_pickers = get_picker_locations_from_ifloc(batches, data["loc_in_order"], data["num_locations"])
     return batches, locations_pickers
 
-def run_local_search_swap(batches, data):
-    new_batches = local_search_swap(batches, data, 2)
+def run_local_search_swap(batches, data, total_time):
+    new_batches = local_search_swap(batches, data, total_time)
+    return new_batches
+
+def run_local_search_move(batches, data, total_time):
+    new_batches = local_search_move(batches, data, total_time)
     return new_batches
