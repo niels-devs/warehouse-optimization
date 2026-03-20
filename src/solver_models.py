@@ -2,7 +2,6 @@ import pulp as pl
 from typing import List, Dict, Set
 import time
 import logging
-import math
 
 from checker.solution_checker import (
     check_batching_solution,
@@ -304,7 +303,7 @@ def main_model(data, time_limit=300):
 
     vol = data["order_volumes"]
     O = data["num_orders"]
-    P = math.ceil(data["max_pickers"]/3)
+    P = data["max_pickers"]
     max_nb_orders = data["max_nb_orders"]
     max_vol = data["max_vol"]
     adj_matrix = data["adj_matrix"]
