@@ -81,28 +81,22 @@ def main():
             logger.info("travel=%s", travel1)
             logger.info("objective=%s", objective1)
             logger.info("time=%s seconds", time)
-            print(f"Objective: {objective1}, Travel: {travel1}, Time: {time}s")
 
         elif choice == "2":  # Model Batching + Model Picking
             batches, pickers_locations = run_batching(data)
-            new_batches1 = run_local_search_move(batches, data, 5)
-            new_batches = run_local_search_swap(new_batches1, data, 5)
-            data_model = add_batches_to_data(data, new_batches, pickers_locations)
+            data_model = add_batches_to_data(data, batches, pickers_locations)
             travel, objective = run_picking(data_model)
-            logger.info("=== MODEL BATCHING ===")
+            logger.info("=== MODEL BATCHING + MODEL PICKING ===")
             logger.info("travel=%s", travel)
             logger.info("objective=%s", objective)
-            print(f"Objective: {objective}, Travel: {travel}")
 
         elif choice == "3":  # Greedy Batching + Model Picking
             batches, pickers_locations = run_greedy(data)
-            new_batches = run_local_search_swap(batches, data, 5)
-            data_model = add_batches_to_data(data, new_batches, pickers_locations)
+            data_model = add_batches_to_data(data, batches, pickers_locations)
             travel, objective = run_picking(data_model)
-            logger.info("=== GREEDY BATCHING ===")
+            logger.info("=== GREEDY BATCHING + MODEL PICKING ===")
             logger.info("travel=%s", travel)
             logger.info("objective=%s", objective)
-            print(f"Objective: {objective}, Travel: {travel}")
 
 if __name__ == "__main__":
     main()
