@@ -32,10 +32,12 @@ data = {
     "max_nb_orders": max_nb_orders,     # maximum number of orders per picker
     "max_vol": max_vol,                 # maximum volume a picker can carry
     "common_locations": common_locations # number of locations shared between two orders
-
+```
 ---
 
 ## 3. Project Structure
+
+The project is organized as follows, showing all source code, data, and supporting files for the order batching and picker assignment optimization.
 
 ```text
 .
