@@ -100,7 +100,7 @@ Example output for the Main Model:
 For Model Batching + Model Picking or Greedy Batching + Model Picking, the output may look like:
 ```bash
 --- Running Model Batching + Model Picking ---
-2026-03-24 19:34:15,696 | INFO | __main__ | === MODEL BATCHING ===
+2026-03-24 19:34:15,696 | INFO | __main__ | === MODEL BATCHING + MODEL PICKING ===
 2026-03-24 19:34:15,697 | INFO | __main__ | travel={1: [(0, 6), (1, 8), (2, 9), (3, 1), (5, 3), (6, 5), (8, 2)],
 3: [(0, 4), (1, 8), (4, 5), (5, 6), (6, 1), (8, 9)], 5: [(0, 7), (1, 4), (2, 1), (3, 2), (4, 6), (6, 9), (7, 8), (8, 3)]}
 2026-03-24 19:34:15,697 | INFO | __main__ | objective=524.0
