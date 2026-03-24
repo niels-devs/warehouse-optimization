@@ -16,42 +16,47 @@ Key objectives:
 
 ## 2. Data Structure
 
-- **Orders**: list of dictionaries, where each dictionary contains:
-  - `orders[o]["locations"]`: list of locations visited by order `o`
-  - `orders[o]["volume"]`: volume of order `o`
+All information is stored in a single Python dictionary called `data`.  
+This dictionary contains all relevant information for order batching and picker assignment optimization, including orders, warehouse layout, and operational constraints.
 
-- **Adjacency matrix (`adj_matrix`)**: represents the warehouse layout, defines distances or connectivity between locations.
+- **`data` dictionary** contains:
 
-- **Binary assignment (`a_io`)**:
-  - `a_io[i, o] = 1` if location `i` is visited by order `o`, otherwise `0`.
-  - Alias in code: `if_loc_in_order` for clarity for non-RO users.
-
+```python
+data = {
+    "adj_matrix": adj_matrix,           # warehouse adjacency matrix
+    "loc_in_order": loc_in_order,       # indicates if a location is part of a given order
+    "num_locations": num_locations,     # total number of locations
+    "num_orders": num_orders,           # total number of orders
+    "min_pickers": min_pickers,         # minimum number of available pickers
+    "max_pickers": max_pickers,         # maximum number of available pickers
+    "max_nb_orders": max_nb_orders,     # maximum number of orders per picker
+    "max_vol": max_vol,                 # maximum volume a picker can carry
+    "common_locations": common_locations # number of locations shared between two orders
+```
 ---
 
-## 3. Preprocessing Steps
+## 3. Project Structure
 
-Before running the optimization model, the following preprocessing is performed:
-
-1. Compute the number of orders (`nb_orders`) and number of locations (`nb_locations`).
-2. Build the binary assignment matrix `a_io` (`if_loc_in_order` in code).
-3. Compute **lower and upper bounds** for the number of pickers:
-   - **Lower bound**: minimum number of pickers required based solely on capacity constraints (number of orders and volume).
-   - **Upper bound**: worst-case scenario assuming minimal work per picker.
-4. Extract order volumes (`vol`) for constraint calculations.
-5. Compute common elements between orders (number of shared locations) for batching heuristics.
-
----
-
-## 4. Project Structure
+The project is organized as follows, showing all source code, data, and supporting files for the order batching and picker assignment optimization.
 
 ```text
 .
-├── main.py              # Entry point and test functions
-├── utils.py             # Preprocessing and helper functions
-├── solver_models.py     # Optimization model(s)
-├── data_loader.py       # Functions to load input data
-├── data/                # Input data files (orders, adjacency matrix, constraints)
-└── README.md            # This file
+├── src                           # Project source code
+│   ├── main.py                   # Main entry point and test functions
+│   ├── data_loader.py            # Functions to load and prepare input data
+│   ├── heuristics.py             # Heuristic algorithms for batching
+│   ├── solver_models.py          # Optimization models
+│   ├── checker                   # Folder to validate instances and solutions
+│   │   ├── instance_checker.py   # Checks input files (orders, matrix, constraints)
+│   │   └── solution_checker.py   # Checks that generated solutions meet all constraints
+│   ├── toy_data                  # Small dataset for quick testing
+│   │   ├── constraints.txt       # Constraints on pickers: max volumes and max number of orders
+│   │   ├── matrix.txt            # Adjacency matrix representing the warehouse
+│   │   └── orders.txt            # Definition of orders (locations and volumes)
+│   └── utils.py                  # Utility and preprocessing functions
+├── .gitignore                    # Files/folders ignored by Git
+├── README.md                     # Project documentation
+└── warehouse-optimization.pdf    # Additional documentation in PDF
 
 ```
 ---
