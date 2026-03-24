@@ -67,45 +67,45 @@ To run the tests, open a terminal in the project directory and run:
 
 ```bash
 python main.py
+```
 
 You will see the interactive menu:
 
+```bash
 ===== BATCHING & PICKING MENU =====
 1: Main Model
 2: Model Batching + Model Picking
 3: Greedy Batching + Model Picking
 0: Exit
-
+```
 Enter the number corresponding to the test you want to run:
-
+```bash
 Option	Strategy	Description
 1	Main Model	Runs the full main model and prints objective, travel distance, and execution time.
-2	Model Batching + Model Picking	Performs model-based batching, applies local search optimizations (move + swap), then runs picking.
-3	Greedy Batching + Model Picking	Performs greedy batching, applies local search optimization (swap), then runs picking.
+2	Model Batching + Model Picking	Performs model-based batching then runs picking.
+3	Greedy Batching + Model Picking	Performs greedy batching then runs picking.
 0	Exit	Exits the program.
-
+```
 After selecting a test, results will be displayed in the terminal and logged via Python’s logging module.
 
 Example output for the Main Model:
-
+```bash
 --- Running Main Model ---
-2026-03-24 12:00:00 | INFO | __main__ | === MAIN MODEL ===
-2026-03-24 12:00:00 | INFO | __main__ | travel=123
-2026-03-24 12:00:00 | INFO | __main__ | objective=456
-2026-03-24 12:00:00 | INFO | __main__ | time=0.5 seconds
-Objective: 456, Travel: 123, Time: 0.5s
-
-For Model Batching + Model Picking or Greedy Batching + Model Picking, the output may look like:
-
---- Running Model Batching + Model Picking ---
-2026-03-24 12:01:00 | INFO | __main__ | === MODEL BATCHING ===
-2026-03-24 12:01:00 | INFO | __main__ | travel=110
-2026-03-24 12:01:00 | INFO | __main__ | objective=400
-Objective: 400, Travel: 110
-
-Use option 0 in the menu to exit the program.
-
+2026-03-24 19:37:40,342 | INFO | __main__ | === MAIN MODEL ===
+2026-03-24 19:37:40,342 | INFO | __main__ | travel={0: [(0, 6), (1, 8), (2, 9), (3, 1), (5, 3), (6, 5), (8, 2)],
+1: [(0, 7), (1, 4), (2, 1), (3, 2), (4, 6), (6, 9), (7, 8), (8, 3)], 3: [(0, 4), (1, 8), (4, 5), (5, 6), (6, 1), (8, 9)]}
+2026-03-24 19:37:40,342 | INFO | __main__ | objective=524.0
+2026-03-24 19:37:40,342 | INFO | __main__ | time=68.57191460000467 seconds
 ```
+For Model Batching + Model Picking or Greedy Batching + Model Picking, the output may look like:
+```bash
+--- Running Model Batching + Model Picking ---
+2026-03-24 19:34:15,696 | INFO | __main__ | === MODEL BATCHING ===
+2026-03-24 19:34:15,697 | INFO | __main__ | travel={1: [(0, 6), (1, 8), (2, 9), (3, 1), (5, 3), (6, 5), (8, 2)],
+3: [(0, 4), (1, 8), (4, 5), (5, 6), (6, 1), (8, 9)], 5: [(0, 7), (1, 4), (2, 1), (3, 2), (4, 6), (6, 9), (7, 8), (8, 3)]}
+2026-03-24 19:34:15,697 | INFO | __main__ | objective=524.0
+```
+Use option 0 in the menu to exit the program.
 
 ## 5. Notes and Assumptions
 
