@@ -29,7 +29,8 @@ from solver_models import (
 
 from heuristics import (
     run_greedy,
-    run_local_search_swap
+    run_local_search_swap,
+    run_local_search_move
 )
 
 # -----------------------------------------------------------------------------
@@ -37,7 +38,7 @@ from heuristics import (
 # -----------------------------------------------------------------------------
 
 logging.basicConfig(
-    level=logging.DEBUG,
+    level=logging.INFO,
     format="%(asctime)s | %(levelname)s | %(name)s | %(message)s"
 )
 
@@ -50,67 +51,58 @@ def main():
     constraints_path = os.path.join(BASE_DIR, "toy_data", "constraints.txt")
 
     data = load_validate_data(matrix_path, orders_path, constraints_path)
+
     tests = {
-        "model_picking": run_picking,
-        "model_batching" : run_batching,
-        "greedy_batching": run_greedy,
-        "local_search_swap": run_local_search_swap,
-        "main_model": run_main_model
+        "1": ("Main Model", run_main_model),
+        "2": ("Model Batching + Model Picking", run_batching),
+        "3": ("Greedy Batching + Model Picking", run_picking),
+        "0": ("Exit", None)
     }
-    # --- MAIN MODEL ---
-    data_base1 = data
-    travel1, objective1, time = tests["main_model"](data)
 
-    # --- MODEL BATCHING ---
-    data_base = data
-    batches, pickers_locations = tests["model_batching"](data)
-    score = evaluate_batches(batches, data["common_locations"])
-    new_batches = tests["local_search_swap"](batches, data)
-    score_new = evaluate_batches(new_batches, data["common_locations"])
-    data_model = add_batches_to_data(data, new_batches, pickers_locations)
+    while True:
+        print("\n===== BATCHING & PICKING MENU =====")
+        for key, (name, _) in tests.items():
+            print(f"{key}: {name}")
+        choice = input("Select an option to run: ").strip()
 
-    travel, objective = tests["model_picking"](data_model)
+        if choice not in tests:
+            print("Invalid choice, please try again.")
+            continue
+        if choice == "0":
+            print("Exiting program.")
+            break
 
-    logger.info("=== MODEL BATCHING ===")
-    logger.info("travel=%s", travel)
-    logger.info("objective=%s", objective)
-    logger.info("=== MAIN MODEL ===")
-    logger.info("travel=%s", travel1)
-    logger.info("objective=%s", objective1)
-    logger.info("time=%s secondes", time)
+        name, func = tests[choice]
+        print(f"\n--- Running {name} ---")
 
-    """
-    # --- GREEDY BATCHING ---
-    batches2, pickers_locations2 = tests["greedy_batching"](data_base)
-    score2 = evaluate_batches(batches2, data_base["common_locations"])
-    new_batches2 = tests["local_search_swap"](batches2, data_base)
-    score_new2 = evaluate_batches(new_batches2, data_base["common_locations"])
-    data_greedy = add_batches_to_data(data_base, new_batches2, pickers_locations2)
+        if choice == "1":  # Main Model
+            batches1, travel1, objective1, time = func(data)
+            logger.info("=== MAIN MODEL ===")
+            logger.info("travel=%s", travel1)
+            logger.info("objective=%s", objective1)
+            logger.info("time=%s seconds", time)
+            print(f"Objective: {objective1}, Travel: {travel1}, Time: {time}s")
 
-    travel2, objective2 = tests["model_picking"](data_greedy)
+        elif choice == "2":  # Model Batching + Model Picking
+            batches, pickers_locations = run_batching(data)
+            new_batches1 = run_local_search_move(batches, data, 5)
+            new_batches = run_local_search_swap(new_batches1, data, 5)
+            data_model = add_batches_to_data(data, new_batches, pickers_locations)
+            travel, objective = run_picking(data_model)
+            logger.info("=== MODEL BATCHING ===")
+            logger.info("travel=%s", travel)
+            logger.info("objective=%s", objective)
+            print(f"Objective: {objective}, Travel: {travel}")
 
-    ### vis
-
-    logger.info("=== MODEL BATCHING ===")
-    logger.info("batches=%s", batches)
-    logger.info("pickers_locations=%s", pickers_locations)
-    logger.info("travel=%s", travel)
-    logger.info("objective=%s", objective)
-
-    logger.info("=== GREEDY BATCHING ===")
-    logger.info("batches=%s", batches2)
-    logger.info("pickers_locations=%s", pickers_locations2)
-    logger.info("travel=%s", travel2)
-    logger.info("objective=%s", objective2)
-
-    print("\n===== SUMMARY =====")
-    print(f"Model batching + local search swap + Model Picking, cost : {objective}")
-    print(f"Greedy batching + local search swap + Model Picking, cost: {objective2}")
-
-    if objective <= objective2:
-        print("Best method: model batching")
-    else:
-        print("Best method: greedy batching")"""
+        elif choice == "3":  # Greedy Batching + Model Picking
+            batches, pickers_locations = run_greedy(data)
+            new_batches = run_local_search_swap(batches, data, 5)
+            data_model = add_batches_to_data(data, new_batches, pickers_locations)
+            travel, objective = run_picking(data_model)
+            logger.info("=== GREEDY BATCHING ===")
+            logger.info("travel=%s", travel)
+            logger.info("objective=%s", objective)
+            print(f"Objective: {objective}, Travel: {travel}")
 
 if __name__ == "__main__":
     main()
