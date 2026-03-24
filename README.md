@@ -61,56 +61,80 @@ The project is organized as follows, showing all source code, data, and supporti
 ```
 ---
 
-## 5. Running the Project
+## 4. Running the Project
 
-To run the picking test:
+To run the tests, open a terminal in the project directory and run:
 
 ```bash
 python main.py
-Tests are organized in main() as a dictionary:
-
-tests = {
-    "picking": test_picking,
-    "batching": test_batching
-    }
-Call a test by key:
-
-tests["picking"]()
-Once ready, you can uncomment the model call in main():
-
-# sm.model_picking(data)
 ```
 
----
+You will see the interactive menu:
 
-## 6. Notes and Assumptions
+```bash
+===== BATCHING & PICKING MENU =====
+1: Main Model
+2: Model Batching + Model Picking
+3: Greedy Batching + Model Picking
+0: Exit
+```
+Enter the number corresponding to the test you want to run:
+```bash
+Option	Strategy	Description
+1	Main Model	Runs the full main model and prints objective, travel distance, and execution time.
+2	Model Batching + Model Picking	Performs model-based batching then runs picking.
+3	Greedy Batching + Model Picking	Performs greedy batching then runs picking.
+0	Exit	Exits the program.
+```
+After selecting a test, results will be displayed in the terminal and logged via Python’s logging module.
+
+Example output for the Main Model:
+```bash
+--- Running Main Model ---
+2026-03-24 19:37:40,342 | INFO | __main__ | === MAIN MODEL ===
+2026-03-24 19:37:40,342 | INFO | __main__ | travel={0: [(0, 6), (1, 8), (2, 9), (3, 1), (5, 3), (6, 5), (8, 2)],
+1: [(0, 7), (1, 4), (2, 1), (3, 2), (4, 6), (6, 9), (7, 8), (8, 3)], 3: [(0, 4), (1, 8), (4, 5), (5, 6), (6, 1), (8, 9)]}
+2026-03-24 19:37:40,342 | INFO | __main__ | objective=524.0
+2026-03-24 19:37:40,342 | INFO | __main__ | time=68.57191460000467 seconds
+```
+For Model Batching + Model Picking or Greedy Batching + Model Picking, the output may look like:
+```bash
+--- Running Model Batching + Model Picking ---
+2026-03-24 19:34:15,696 | INFO | __main__ | === MODEL BATCHING + MODEL PICKING ===
+2026-03-24 19:34:15,697 | INFO | __main__ | travel={1: [(0, 6), (1, 8), (2, 9), (3, 1), (5, 3), (6, 5), (8, 2)],
+3: [(0, 4), (1, 8), (4, 5), (5, 6), (6, 1), (8, 9)], 5: [(0, 7), (1, 4), (2, 1), (3, 2), (4, 6), (6, 9), (7, 8), (8, 3)]}
+2026-03-24 19:34:15,697 | INFO | __main__ | objective=524.0
+```
+Use option 0 in the menu to exit the program.
+
+## 5. Notes and Assumptions
 
 - The number of pickers is **bounded** (minimum and maximum) but not fixed.
 - Lower bounds are computed **solely from capacity constraints** (number of orders and total volume).
 - Upper bounds are calculated as a worst-case scenario, assuming minimal work per picker.
 - Data structures follow the **mathematical model**:
   - `a_io[i, o]` matches \(a_{i,o}\) in the formulation.
-  - `if_loc_in_order` alias is provided for clarity for non-RO users.
+  - `loc_in_order` alias is provided for clarity for non-RO users.
 - Preprocessing ensures all constraints are easily applied by the solver.
 - The order of visits within batches is **flexible**, to be optimized by the model.
 
+
 ---
 
-## 7. Future Work
+## 6. Future Work
 
-- Integrate routing optimization for each picker's path.
-- Implement more advanced batching heuristics.
+- Implement more advanced picking heuristics.
 - Extend the model for dynamic orders or real-time picking scenarios.
 - Improve computation of lower and upper bounds for pickers using smarter reasoning beyond simple worst-case estimates.
 
 ---
 
-## 8. References / Developer Notes
+## 7. References / Developer Notes
 
 - Variables and functions align with **mathematical notation** wherever possible.
 - Code is structured to allow easy testing and modification:
   - `utils.py` → preprocessing and helper functions
   - `data_loader.py` → loading input data
   - `solver_models.py` → contains optimization models
-  - `main.py` → testing, assembling data, calling models
+  - `main.py` → testing
 - Typing is added for clarity (`List`, `Dict`, `int`, etc.) and ensures consistency in development.
