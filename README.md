@@ -16,15 +16,22 @@ Key objectives:
 
 ## 2. Data Structure
 
-- **Orders**: list of dictionaries, where each dictionary contains:
-  - `orders[o]["locations"]`: list of locations visited by order `o`
-  - `orders[o]["volume"]`: volume of order `o`
+All information is stored in a single Python dictionary called `data`.  
+This dictionary contains all relevant information for order batching and picker assignment optimization, including orders, warehouse layout, and operational constraints.
 
-- **Adjacency matrix (`adj_matrix`)**: represents the warehouse layout, defines distances or connectivity between locations.
+- **`data` dictionary** contains:
 
-- **Binary assignment (`a_io`)**:
-  - `a_io[i, o] = 1` if location `i` is visited by order `o`, otherwise `0`.
-  - Alias in code: `if_loc_in_order` for clarity for non-RO users.
+```python
+data = {
+    "adj_matrix": adj_matrix,           # warehouse adjacency matrix
+    "loc_in_order": loc_in_order,       # indicates if a location is part of a given order
+    "num_locations": num_locations,     # total number of locations
+    "num_orders": num_orders,           # total number of orders
+    "min_pickers": min_pickers,         # minimum number of available pickers
+    "max_pickers": max_pickers,         # maximum number of available pickers
+    "max_nb_orders": max_nb_orders,     # maximum number of orders per picker
+    "max_vol": max_vol,                 # maximum volume a picker can carry
+    "common_locations": common_locations # number of locations shared between two orders
 
 ---
 
