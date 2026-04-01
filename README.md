@@ -1,16 +1,20 @@
-# Order Picking and Batching Optimization
+# Order Batching and Picking Optimization
 
 ## 1. Project Overview
+This project addresses the optimization of order batching and picking in a warehouse environment. Each order consists of multiple storage locations to visit and an associated volume. The goal is to assign orders to pickers and plan their routes in a way that minimizes total distance traveled, while respecting picker capacity constraints. Efficient batching and routing can significantly reduce labor effort, operational costs, and improve overall warehouse throughput.
 
-This project addresses the optimization of order picking and batching in a warehouse environment.  
-Each order consists of a set of storage locations to visit and an associated volume.  
-The objective is to assign orders to pickers while respecting capacity constraints, aiming to minimize the pickers total distance.
+The repository provides a mathematical modeling framework as well as heuristic approaches to handle real-world warehouse scenarios effectively.
 
 Key objectives:
-- Respect maximum number of orders per picker.
-- Respect maximum volume per picker.
-- Allow flexible batching strategies.
-- Keep solutions aligned with warehouse layout and locations.
+- Order Batching Models: Optimally group orders into batches using exact mathematical formulations.
+- Picking Routing Model: Computes efficient picker routes given assigned batches.
+- Integrated Main Model: Solves batching and routing simultaneously for overall optimization.
+- Heuristic Batching Methods: Three heuristics for fast batching:
+    - Greedy: Quickly assigns orders based on simple priority rules.
+    - Swap: Improves batch quality by swapping orders between batches.
+    - Move: Moves orders across batches to balance load or reduce travel distance.
+- Capacity and Layout-Aware: Ensures picker volume limits and warehouse layout constraints are respected.
+- Scalable and Flexible: Supports large numbers of orders and locations with configurable warehouse layouts.
 
 ---
 
