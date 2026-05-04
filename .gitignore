@@ -7,3 +7,5 @@ __pycache__/
 
 # Data file
 data/
+real_warehouse_data/
+real_warehouse_data.zip
