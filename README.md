@@ -38,15 +38,15 @@ This dictionary contains all relevant information for order batching and picker 
 
 ```python
 data = {
-    "adj_matrix": adj_matrix,            # warehouse adjacency matrix
-    "loc_in_order": loc_in_order,        # indicates if a location is part of a given order
-    "num_locations": num_locations,      # total number of locations
-    "num_orders": num_orders,            # total number of orders
-    "min_pickers": min_pickers,          # minimum number of available pickers
-    "max_pickers": max_pickers,          # maximum number of available pickers
-    "max_nb_orders": max_nb_orders,      # maximum number of orders per picker
-    "max_vol": max_vol,                  # maximum volume a picker can carry
-    "common_locations": common_locations # number of locations shared between two orders
+    "adj_matrix": adj_matrix,             # warehouse adjacency matrix
+    "loc_in_order": loc_in_order,         # indicates if a location is part of a given order
+    "num_locations": num_locations,       # total number of locations
+    "num_orders": num_orders,             # total number of orders
+    "min_pickers": min_pickers,           # minimum number of available pickers
+    "max_pickers": max_pickers,           # maximum number of available pickers
+    "max_nb_orders": max_nb_orders,       # maximum number of orders per picker
+    "max_vol": max_vol,                   # maximum volume a picker can carry
+    "common_locations": common_locations  # number of locations shared between two orders
 ```
 ---
 
