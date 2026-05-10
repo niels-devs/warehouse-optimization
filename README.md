@@ -122,6 +122,8 @@ For Model Batching + Model Picking or Greedy Batching + Model Picking, the outpu
 ```
 Use option 0 in the menu to exit the program.
 
+---
+
 ## 5. Results & Benchmarks
 
 To evaluate the performance of the tiered heuristic pipeline against the exact mathematical model, experiments were conducted across two warehouse configurations of varying scales.
@@ -139,6 +141,8 @@ The performance divergence between the two approaches is rooted in their underly
 * **The Scalability Wall:** The exact model provides the theoretical lower bound but becomes operationally unfeasible as the number of orders exceeds 30, due to the combinatorial explosion of the JOBPRP.
 * **Real-time Viability:** The sub-second response time of the heuristic allows for dynamic re-batching, a critical requirement for modern, high-velocity fulfillment centers.v
 
+---
+
 ## 6. Conclusion
 
 This study successfully developed and evaluated a tiered optimization pipeline for the Joint Order Batching and Picker Routing Problem (JOBPRP). The results demonstrate a clear trade-off between mathematical rigor and computational efficiency: while exact formulations define the optimal baseline, they are practically restricted to small-scale instances due to exponential growth in processing time.
@@ -153,6 +157,8 @@ While the current heuristic suite provides a robust framework for static batchin
 
 * **Dynamic Order Integration:** Adapting the **Move** operator to handle "live" order arrivals, inserting new picks into active routes in real-time.
 * **Congestion Awareness:** Modifying the adjacency matrix to include dynamic edge weights that penalize high picker density, avoiding physical bottlenecks in high-traffic aisles.
+
+---
 
 ## 8. References / Developer Notes
 
