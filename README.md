@@ -8,7 +8,7 @@ By combining exact mathematical modeling with high-speed local search heuristics
 > [!IMPORTANT]
 > **Technical Documentation:** For an in-depth analysis, please refer to the [**Warehouse_Optimization.pdf**](./Warehouse_Optimization.pdf) included in this repository. This document provides:
 > * **Problem Formalization:** A detailed definition of the Joint Order Batching and Picker Routing Problem (JOBPRP).
-> * **Data & Model Logic:** An explanation of the graph-based data structures and the exact Mixed-Integer Programming (MIP) formulations.
+> * **Data & Model Logic:** An explanation of the graph-based data structures and the exact Mixed-Integer Programming (MILP) formulations.
 > * **Heuristic Suite:** A deep dive into the tiered logic of the Greedy, Swap/Move, and 2-Opt algorithms.
 > * **Comprehensive Benchmarks:** A full breakdown of performance metrics and optimality gap analysis across various warehouse scales.
 
