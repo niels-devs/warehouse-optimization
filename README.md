@@ -124,7 +124,7 @@ Use option 0 in the menu to exit the program.
 
 ---
 
-## 5. Results & Benchmarks
+## 5. Results
 
 To evaluate the performance of the tiered heuristic pipeline against the exact mathematical model, experiments were conducted across two warehouse configurations of varying scales.
 
