@@ -14,7 +14,7 @@ By combining exact mathematical modeling with high-speed local search heuristics
 
 ### Core Objectives
 * **Integrated Global Optimization:**
-    * **Main Model (Relax):** A Mixed-Integer Programming (MIP) formulation that solves batching and routing simultaneously to identify the global optimum or theoretical lower bound.
+    * **Main Model (Relax):** A Mixed-Integer Linear Programming (MILP) formulation that solves batching and routing simultaneously to identify the global optimum or theoretical lower bound.
 * **Decoupled Mathematical Modeling:**
     * **Order Batching Model:** Optimally groups orders into clusters based on location similarity and capacity limits.
     * **Picking Routing Model:** Computes the exact shortest path for pickers once batches are assigned.
@@ -38,15 +38,15 @@ This dictionary contains all relevant information for order batching and picker 
 
 ```python
 data = {
-    "adj_matrix": adj_matrix,             # warehouse adjacency matrix
-    "loc_in_order": loc_in_order,         # indicates if a location is part of a given order
-    "num_locations": num_locations,       # total number of locations
-    "num_orders": num_orders,             # total number of orders
-    "min_pickers": min_pickers,           # minimum number of available pickers
-    "max_pickers": max_pickers,           # maximum number of available pickers
-    "max_nb_orders": max_nb_orders,       # maximum number of orders per picker
-    "max_vol": max_vol,                   # maximum volume a picker can carry
-    "common_locations": common_locations  # number of locations shared between two orders
+    "adj_matrix": adj_matrix,              # warehouse adjacency matrix
+    "loc_in_order": loc_in_order,          # indicates if a location is part of a given order
+    "num_locations": num_locations,        # total number of locations
+    "num_orders": num_orders,              # total number of orders
+    "min_pickers": min_pickers,            # minimum number of available pickers
+    "max_pickers": max_pickers,            # maximum number of available pickers
+    "max_nb_orders": max_nb_orders,        # maximum number of orders per picker
+    "max_vol": max_vol,                    # maximum volume a picker can carry
+    "common_locations": common_locations   # number of locations shared between two orders
 ```
 ---
 
